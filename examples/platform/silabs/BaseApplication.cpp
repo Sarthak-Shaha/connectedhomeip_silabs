@@ -353,7 +353,7 @@ bool BaseApplication::ActivateStatusLedPatterns()
     bool isPatternSet = false;
 #if (defined(ENABLE_WSTK_LEDS) && (defined(SL_CATALOG_SIMPLE_LED_LED1_PRESENT)))
 #ifdef MATTER_DM_PLUGIN_IDENTIFY_SERVER
-    for(const auto& obj: IdentifyPool)
+    for (const auto & obj : IdentifyPool)
     {
         if (obj->mActive)
         {
@@ -958,5 +958,6 @@ bool BaseApplication::GetProvisionStatus()
 }
 void emberAfIdentifyClusterInitCallback(chip::EndpointId endpoint)
 {
-    IdentifyPool.CreateObject(endpoint, BaseApplication::OnIdentifyStart, BaseApplication::OnIdentifyStop, Clusters::Identify::IdentifyTypeEnum::kVisibleIndicator, BaseApplication::OnTriggerIdentifyEffect);
+    IdentifyPool.CreateObject(endpoint, BaseApplication::OnIdentifyStart, BaseApplication::OnIdentifyStop,
+                              Clusters::Identify::IdentifyTypeEnum::kVisibleIndicator, BaseApplication::OnTriggerIdentifyEffect);
 }
