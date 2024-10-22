@@ -357,7 +357,7 @@ bool BaseApplication::ActivateStatusLedPatterns()
 #ifdef MATTER_DM_PLUGIN_IDENTIFY_SERVER
     for (const auto & obj : IdentifyPool)
     {
-        if(obj->mEndpoint == latest_active_endpoint)
+        if (obj->mEndpoint == latest_active_endpoint)
         {
             if (obj->mActive)
             {
@@ -687,7 +687,7 @@ void BaseApplication::OnTriggerIdentifyEffectCompleted(chip::System::Layer * sys
 
 void BaseApplication::OnTriggerIdentifyEffect(Identify * identify)
 {
-    sIdentifyEffect = identify->mCurrentEffectIdentifier;
+    sIdentifyEffect        = identify->mCurrentEffectIdentifier;
     latest_active_endpoint = identify->mEndpoint;
 
     if (identify->mEffectVariant != Clusters::Identify::EffectVariantEnum::kDefault)
