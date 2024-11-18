@@ -281,6 +281,12 @@ void PairingManager::OnPairingDeleted(CHIP_ERROR err)
 
 void PairingManager::OnCommissioningComplete(NodeId nodeId, CHIP_ERROR err)
 {
+    if (mPairingDelegate)
+    {
+        mPairingDelegate->OnCommissioningComplete(nodeId, err);
+        SetPairingDelegate(nullptr);
+    }
+
     if (err == CHIP_NO_ERROR)
     {
         // print to console
@@ -293,12 +299,6 @@ void PairingManager::OnCommissioningComplete(NodeId nodeId, CHIP_ERROR err)
     else
     {
         ChipLogProgress(NotSpecified, "Device commissioning Failure: %s", ErrorStr(err));
-    }
-
-    if (mPairingDelegate)
-    {
-        mPairingDelegate->OnCommissioningComplete(nodeId, err);
-        SetPairingDelegate(nullptr);
     }
 }
 
@@ -467,6 +467,11 @@ void PairingManager::OnCurrentFabricRemove(void * context, NodeId nodeId, CHIP_E
             self->mPairingDelegate->OnDeviceRemoved(nodeId, err);
             self->SetPairingDelegate(nullptr);
         }
+
+        FabricIndex fabricIndex = self->CurrentCommissioner().GetFabricIndex();
+        app::InteractionModelEngine::GetInstance()->ShutdownSubscriptions(fabricIndex, nodeId);
+        ScopedNodeId scopedNodeId(nodeId, fabricIndex);
+        DeviceManager::Instance().RemoveSyncedDevice(scopedNodeId);
     }
     else
     {
