@@ -84,10 +84,6 @@ def parse_version_from_slt(file_path):
         version_str = match.group(1)
         if "." in version_str:
             version = version_str.split("@")[0].strip()
-            # TODO: Remove this override once a GA SiSDK release is available.
-            if version == "2025.12.1-alpha":
-                version = "2025.12.0"
-            return version
     return None
 
 
@@ -233,19 +229,19 @@ def update_slt_cli(slt_cli_path):
 
 
 def get_pkg_manifest_paths():
-    """Return paths to sisdk-pkg.lock and wiseconnect-pkg.slt from chip-build-efr32 files-slt."""
+    """Return paths to sisdk-pkg.slt and wiseconnect-pkg.slt from chip-build-efr32 files-slt."""
     repo_root = get_repo_root()
     files_slt_dir = os.path.join(
         repo_root, "integrations", "docker", "images", "stage-2", "chip-build-efr32", "files-slt"
     )
     return [
         os.path.join(files_slt_dir, "wiseconnect-pkg.slt"),
-        os.path.join(files_slt_dir, "sisdk-pkg.lock"),
+        os.path.join(files_slt_dir, "sisdk-pkg.slt"),
     ]
 
 
 def install_sdk_packages(slt_cli_path):
-    """Install packages from sisdk-pkg.lock and wiseconnect-pkg.slt."""
+    """Install packages from sisdk-pkg.slt and wiseconnect-pkg.slt."""
     for pkg_path in get_pkg_manifest_paths():
         if not os.path.isfile(pkg_path):
             logger.error("Package manifest not found at %s", pkg_path)
@@ -507,8 +503,8 @@ def setup_slt_environment(verbose=False):
     repo_root = get_repo_root()
     check_silabs_not_submodules(repo_root)
 
-    simplicity_sdk_path = slt_where(slt_cli_path, "simplicity-sdk/2025.12.1-alpha")
-    wiseconnect_path = slt_where(slt_cli_path, "wiseconnect")
+    simplicity_sdk_path = slt_where(slt_cli_path, "simplicity-sdk/2025.12.2")
+    wiseconnect_path = slt_where(slt_cli_path, "wiseconnect/4.0.1")
     copy_sdk_packages(simplicity_sdk_path, wiseconnect_path)
 
     versions = get_installed_sdk_versions(repo_root)
