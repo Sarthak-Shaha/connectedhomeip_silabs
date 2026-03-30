@@ -333,6 +333,16 @@ def get_silabs_paths_as_submodules(repo_root):
     return found
 
 
+def get_silabs_paths_as_symlinks(repo_root):
+    """Return which of third_party/silabs/simplicity_sdk and wifi_sdk exist as symlinks."""
+    found = []
+    for name in SILABS_SDK_LINK_NAMES:
+        path = os.path.join(repo_root, "third_party", "silabs", name)
+        if os.path.islink(path):
+            found.append(name)
+    return found
+
+
 def _remove_silabs_submodules(repo_root, submodule_names):
     """Remove submodule checkout dirs: git rm when path is in index; else remove from disk (e.g. after pull, index already has no entry)."""
     paths = [os.path.join("third_party", "silabs", n) for n in submodule_names]
@@ -355,69 +365,78 @@ def _remove_silabs_submodules(repo_root, submodule_names):
     logger.info("Submodules removed successfully.")
 
 
+def _remove_silabs_symlinks(repo_root, symlink_names):
+    """Remove symlinks at third_party/silabs/<name> for each name in symlink_names."""
+    for name in symlink_names:
+        path = os.path.join(repo_root, "third_party", "silabs", name)
+        try:
+            os.remove(path)
+            logger.info("Removed symlink: %s", path)
+        except OSError as e:
+            logger.error("Failed to remove symlink %s: %s", path, e)
+            sys.exit(1)
+
+
 def check_silabs_not_submodules(repo_root):
-    """If simplicity_sdk or wifi_sdk are submodule checkouts, ask to remove them; else exit with instructions."""
+    """If simplicity_sdk or wifi_sdk are symlinks or submodule checkouts, ask to remove them; else exit with instructions."""
     submodule_names = get_silabs_paths_as_submodules(repo_root)
-    if not submodule_names:
+    symlink_names = get_silabs_paths_as_symlinks(repo_root)
+    if not submodule_names and not symlink_names:
         return
 
-    paths = [os.path.join("third_party", "silabs", n) for n in submodule_names]
+    parts = []
+    if symlink_names:
+        parts.append("symlinks: %s" % ", ".join(os.path.join("third_party", "silabs", n) for n in symlink_names))
+    if submodule_names:
+        parts.append("submodules: %s" % ", ".join(os.path.join("third_party", "silabs", n) for n in submodule_names))
     logger.warning(
-        "The following paths are submodule checkouts (e.g. from older installs): %s. "
-        "This script expects to create symlinks here, not use submodules.",
-        ", ".join(paths),
+        "The following exist but this script expects to copy SDKs here: %s. "
+        "Remove them so the script can copy the SDKs.",
+        "; ".join(parts),
     )
     try:
-        reply = input("Remove these submodules now? [y/N]: ").strip().lower()
+        reply = input("Remove these now? [y/N]: ").strip().lower()
     except EOFError:
         reply = "n"
     if reply in ("y", "yes"):
-        _remove_silabs_submodules(repo_root, submodule_names)
+        if symlink_names:
+            _remove_silabs_symlinks(repo_root, symlink_names)
+        if submodule_names:
+            _remove_silabs_submodules(repo_root, submodule_names)
     else:
+        all_paths = [os.path.join("third_party", "silabs", n) for n in (symlink_names + submodule_names)]
         logger.error(
-            "Remove the directories manually (e.g. rm -rf %s), then re-run this script.",
-            " ".join(paths),
+            "Remove the paths manually (e.g. rm -rf %s), then re-run this script.",
+            " ".join(all_paths),
         )
         sys.exit(1)
 
 
-def create_sdk_symlinks(simplicity_sdk_path, wiseconnect_path):
-    """Create symlinks: third_party/silabs/simplicity_sdk and wifi_sdk to SLT SDK locations."""
+def copy_sdk_packages(simplicity_sdk_path, wiseconnect_path):
+    """Copy Simplicity SDK and WiseConnect from SLT locations to third_party/silabs."""
     repo_root = get_repo_root()
     silabs_dir = os.path.join(repo_root, "third_party", "silabs")
 
-    def create_symlink(target_path, link_name):
-        if not target_path or not os.path.isdir(target_path):
-            logger.error(
-                "Cannot create symlink: target path does not exist or is not a directory: %s",
-                target_path,
-            )
+    def copy_dir(source_path, dest_name):
+        if not source_path or not os.path.isdir(source_path):
+            logger.error("Source path does not exist or is not a directory: %s", source_path)
             sys.exit(1)
-        link_path = os.path.join(silabs_dir, link_name)
+        dest_path = os.path.join(silabs_dir, dest_name)
         try:
             os.makedirs(silabs_dir, exist_ok=True)
-            if os.path.lexists(link_path):
-                if os.path.islink(link_path):
-                    current = os.path.realpath(link_path)
-                    if os.path.realpath(target_path) == current:
-                        logger.info("Symlink already up to date: %s", link_path)
-                        return  # No error; skip create
-                    os.remove(link_path)
+            if os.path.lexists(dest_path):
+                if os.path.isdir(dest_path):
+                    shutil.rmtree(dest_path)
                 else:
-                    logger.error(
-                        "Cannot create symlink: %s already exists and is not a symlink. "
-                        "Remove it manually and re-run.",
-                        link_path,
-                    )
-                    sys.exit(1)
-            os.symlink(target_path, link_path)
-            logger.info("Created symlink %s -> %s", link_path, target_path)
+                    os.remove(dest_path)
+            shutil.copytree(source_path, dest_path)
+            logger.info("Copied %s -> %s", source_path, dest_path)
         except OSError as e:
-            logger.error("Could not create symlink %s -> %s: %s", link_path, target_path, e)
+            logger.error("Could not copy %s to %s: %s", source_path, dest_path, e)
             sys.exit(1)
 
-    create_symlink(simplicity_sdk_path, "simplicity_sdk")
-    create_symlink(wiseconnect_path, "wifi_sdk")
+    copy_dir(simplicity_sdk_path, "simplicity_sdk")
+    copy_dir(wiseconnect_path, "wifi_sdk")
 
 
 def parse_key_from_file(file_path, key):
@@ -490,7 +509,7 @@ def setup_slt_environment(verbose=False):
 
     simplicity_sdk_path = slt_where(slt_cli_path, "simplicity-sdk/2025.12.1-alpha")
     wiseconnect_path = slt_where(slt_cli_path, "wiseconnect")
-    create_sdk_symlinks(simplicity_sdk_path, wiseconnect_path)
+    copy_sdk_packages(simplicity_sdk_path, wiseconnect_path)
 
     versions = get_installed_sdk_versions(repo_root)
     write_install_done_marker(versions)
